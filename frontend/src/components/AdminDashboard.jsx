@@ -60,6 +60,7 @@ export default function AdminDashboard() {
                 <th>Institution</th>
                 <th>Roll No</th>
                 <th>Class</th>
+                <th>Parent Contact</th>
               </tr>
             </thead>
             <tbody>
@@ -72,6 +73,7 @@ export default function AdminDashboard() {
                   <td>
                     <span className="table-badge">{student.class}</span>
                   </td>
+                  <td><span className="table-contact">{student.parentContact}</span></td>
                 </tr>
               ))}
             </tbody>

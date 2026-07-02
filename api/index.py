@@ -17,7 +17,7 @@ def get_conn():
     url = DATABASE_URL
     if "sslmode=" not in url:
         url += "&sslmode=require" if "?" in url else "?sslmode=require"
-    return psycopg2.connect(url, connect_timeout=10)
+    return psycopg2.connect(url, connect_timeout=10, prepare_threshold=None)
 
 
 @app.route("/api/health", methods=["GET"])
@@ -138,13 +138,40 @@ def login():
 @app.route("/api/create-profile", methods=["POST"])
 def create_profile():
     data = request.json or {}
-    email = data.get("email")
+    email = (data.get("email") or "").strip()
+    institution = (data.get("institutionName") or "").strip()
+    dob = data.get("dateOfBirth")
+    gender = (data.get("gender") or "").strip()
+    roll_number = (data.get("rollNumber") or "").strip()
+    grade_class = (data.get("gradeClass") or "").strip()
+    section = (data.get("section") or "").strip()
+    parent_contact = (data.get("parentContact") or "").strip()
+
     if not email:
         return jsonify({"error": "Email is required"}), 400
+    if not all([institution, dob, gender, roll_number, grade_class, section, parent_contact]):
+        return jsonify({"error": "Please fill in all profile fields"}), 400
 
     try:
         with get_conn() as conn:
             with conn.cursor() as cur:
+                cur.execute(
+                    "SELECT email FROM userdata WHERE LOWER(email) = LOWER(%s)",
+                    (email,),
+                )
+                user_row = cur.fetchone()
+                if not user_row:
+                    return jsonify({"error": "User account not found. Please sign up first."}), 400
+
+                stored_email = user_row[0]
+
+                cur.execute(
+                    "SELECT 1 FROM student_profiles WHERE student_email = %s",
+                    (stored_email,),
+                )
+                if cur.fetchone():
+                    return jsonify({"error": "Profile already exists for this account."}), 400
+
                 cur.execute(
                     """
                     INSERT INTO student_profiles
@@ -152,21 +179,24 @@ def create_profile():
                     VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
-                        email,
-                        data.get("institutionName"),
-                        data.get("dateOfBirth"),
-                        data.get("gender"),
-                        data.get("rollNumber"),
-                        data.get("gradeClass"),
-                        data.get("section"),
-                        data.get("parentContact"),
+                        stored_email,
+                        institution,
+                        dob,
+                        gender,
+                        roll_number,
+                        grade_class,
+                        section,
+                        parent_contact,
                     ),
                 )
                 conn.commit()
         return jsonify({"status": "success"}), 201
+    except IntegrityError as e:
+        print(f"Profile integrity error: {e}")
+        return jsonify({"error": "Could not save profile. Email may not be registered yet."}), 400
     except Exception as e:
         print(f"Database error: {e}")
-        return jsonify({"error": "Failed to save profile"}), 500
+        return jsonify({"error": f"Failed to save profile: {e}"}), 500
 
 
 @app.route("/api/get-profile", methods=["GET"])
@@ -214,7 +244,8 @@ def get_all_profiles():
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT u.email, u.first_name, u.last_name, s.institution_name, s.roll_number, s.grade_class, s.section
+                    SELECT u.email, u.first_name, u.last_name, s.institution_name, s.roll_number,
+                           s.grade_class, s.section, s.parent_contact
                     FROM userdata u
                     LEFT JOIN student_profiles s ON u.email = s.student_email
                     ORDER BY u.created_at DESC
@@ -230,8 +261,9 @@ def get_all_profiles():
                     "institution": inst or "—",
                     "rollNumber": roll or "—",
                     "class": f"{grade} - {sec}" if grade and sec else "—",
+                    "parentContact": parent or "—",
                 }
-                for email, fname, lname, inst, roll, grade, sec in rows
+                for email, fname, lname, inst, roll, grade, sec, parent in rows
             ]
         ), 200
     except Exception as e:
