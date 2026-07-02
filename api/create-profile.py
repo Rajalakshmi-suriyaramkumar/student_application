@@ -13,7 +13,7 @@ def handler(event, context):
     if not email:
         return {"statusCode": 400, "body": json.dumps({"error": "Email is required"})}
     try:
-        with psycopg2.connect("postgresql://postgres:School*Pro123#@db.iwwcrggaufbphjaxwybx.supabase.co:5432/postgres") as conn:
+        with psycopg2.connect("postgresql://postgres.iwwcrggaufbphjaxwybx:RAJALAKSHMI123@aws-1-ap-south-1.pooler.supabase.com:6543/postgres") as conn:
             with conn.cursor() as cur:
                 query = """
                     INSERT INTO student_profiles 

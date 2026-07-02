@@ -3,17 +3,18 @@ import bcrypt
 import psycopg2
 def handler(event, context):
     body = json.loads(event.get('body', '{}'))
-    email = body.get('email')
-    password = body.get('password')
     fname = body.get('firstName')
     lname = body.get('lastName')
+    email = body.get('email')
+    password = body.get('password')
+    
     if not email or not password:
         return {"statusCode": 400, "body": json.dumps({"error": "Missing required fields"})}
     hashed_pw = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     conn = None
     cur = None
     try:
-        conn = psycopg2.connect("postgresql://postgres:School*Pro123#@db.iwwcrggaufbphjaxwybx.supabase.co:5432/postgres")
+        conn = psycopg2.connect("postgresql://postgres.iwwcrggaufbphjaxwybx:RAJALAKSHMI123@aws-1-ap-south-1.pooler.supabase.com:6543/postgres")
         cur = conn.cursor()
         query = """INSERT INTO userdata (email, password_hash, first_name, last_name) VALUES (%s, %s, %s, %s); """
         cur.execute(query, (email, hashed_pw, fname, lname))

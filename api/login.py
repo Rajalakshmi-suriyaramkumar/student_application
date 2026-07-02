@@ -8,7 +8,7 @@ def handler(event, context):
     if not email or not password:
         return {"statusCode": 400, "body": json.dumps({"error": "Bad request"})}
     try:
-        with psycopg2.connect("YOUR_SUPABASE_CONNECTION_STRING") as conn:
+        with psycopg2.connect("postgresql://postgres.iwwcrggaufbphjaxwybx:RAJALAKSHMI123@aws-1-ap-south-1.pooler.supabase.com:6543/postgres") as conn:
             with conn.cursor() as cur:
                 cur.execute('SELECT password_hash FROM userdata WHERE email = %s;', (email,))
                 res = cur.fetchone()

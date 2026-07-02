@@ -6,10 +6,9 @@ from flask import Flask, request, jsonify
 
 app = Flask(__name__)
 
-# Password must be URL-encoded: * -> %2A, # -> %23
 DEFAULT_DB_URL = (
-    "postgresql://postgres:School%2APro123%23"
-    "@db.iwwcrggaufbphjaxwybx.supabase.co:5432/postgres"
+    "postgresql://postgres.iwwcrggaufbphjaxwybx:RAJALAKSHMI123"
+    "@aws-1-ap-south-1.pooler.supabase.com:6543/postgres"
 )
 DATABASE_URL = os.environ.get("DATABASE_URL", DEFAULT_DB_URL)
 
