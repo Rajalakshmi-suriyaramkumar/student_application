@@ -294,6 +294,13 @@ body {
   text-align: center;
 }
 
+.password-hint {
+  margin: -8px 0 0;
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
 /* Loading & empty states */
 .state-message {
   text-align: center;

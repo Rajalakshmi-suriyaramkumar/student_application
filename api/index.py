@@ -36,6 +36,20 @@ def password_matches(plain_password, stored_hash):
         return False
 def hash_password(plain_password):
     return bcrypt.hashpw(plain_password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
+
+def validate_strong_password(password):
+    if len(password) < 8:
+        return "Password must be at least 8 characters."
+    if not any(c.isupper() for c in password):
+        return "Password must include at least one uppercase letter."
+    if not any(c.islower() for c in password):
+        return "Password must include at least one lowercase letter."
+    if not any(c.isdigit() for c in password):
+        return "Password must include at least one number."
+    if not any(not c.isalnum() for c in password):
+        return "Password must include at least one special character (e.g. @ # $ !)."
+    return None
+
 def student_has_profile(cursor, email):
     cursor.execute(
         "SELECT 1 FROM student_profiles WHERE student_email = %s",
@@ -75,6 +89,9 @@ def register():
         return jsonify({"error": "Please enter your email and password."}), 400
     if not first_name or not last_name:
         return jsonify({"error": "Please enter your first and last name."}), 400
+    password_error = validate_strong_password(password)
+    if password_error:
+        return jsonify({"error": password_error}), 400
     password_hash = hash_password(password)
     try:
         with connect_to_database() as connection:
