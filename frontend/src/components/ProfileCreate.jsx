@@ -12,27 +12,33 @@ export default function ProfileCreate({ userEmail, onProfileComplete }) {
     parentContact: '',
   });
   const [loading, setLoading] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value });
+    setErrorMessage('');
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setErrorMessage('');
     setLoading(true);
+
     try {
-      const res = await fetch('/api/create-profile', {
+      const response = await fetch('/api/create-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(form),
       });
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to save profile');
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Could not save your profile. Please try again.');
       }
+
       onProfileComplete();
-    } catch (err) {
-      alert(err.message);
+    } catch (error) {
+      setErrorMessage(error.message);
     } finally {
       setLoading(false);
     }
@@ -44,6 +50,10 @@ export default function ProfileCreate({ userEmail, onProfileComplete }) {
       <p className="page-subtitle">
         Fill out your information to generate your student ID card.
       </p>
+
+      {errorMessage && (
+        <p className="form-error" role="alert">{errorMessage}</p>
+      )}
 
       <form onSubmit={handleSubmit} className="form-group">
         <input

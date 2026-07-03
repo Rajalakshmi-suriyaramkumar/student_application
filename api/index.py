@@ -2,7 +2,10 @@ import os
 import bcrypt
 import psycopg2
 from psycopg2 import IntegrityError, OperationalError
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect
+from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
 app = Flask(__name__)
 ADMIN_EMAIL = "rajidce2022@gmail.com"
 NOT_PROVIDED = "—"
@@ -10,6 +13,10 @@ DEFAULT_DATABASE_URL = (
     "postgresql://postgres.iwwcrggaufbphjaxwybx:RAJALAKSHMI123"
     "@aws-1-ap-south-1.pooler.supabase.com:6543/postgres")
 DATABASE_URL = os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
+GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
+GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
+GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 def connect_to_database():
     connection_url = DATABASE_URL
     if "sslmode=" not in connection_url:
@@ -294,5 +301,132 @@ def delete_user():
     except Exception as error:
         print(f"Delete user error: {error}")
         return jsonify({"error": "Could not delete user. Please try again."}), 500
+def is_admin(email):
+    return (email or "").strip().lower() == ADMIN_EMAIL.lower()
+def get_gmail_flow():
+    return Flow.from_client_config(
+        {
+            "web": {
+                "client_id": GOOGLE_CLIENT_ID,
+                "client_secret": GOOGLE_CLIENT_SECRET,
+                "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+                "token_uri": "https://oauth2.googleapis.com/token",
+            }
+        },
+        scopes=GMAIL_SCOPES,
+        redirect_uri=GOOGLE_REDIRECT_URI,
+    )
+def save_gmail_token(admin_email, refresh_token):
+    with connect_to_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                INSERT INTO gmail_tokens (admin_email, refresh_token)
+                VALUES (%s, %s)
+                ON CONFLICT (admin_email) DO UPDATE
+                SET refresh_token = EXCLUDED.refresh_token, updated_at = NOW()
+                """,
+                (admin_email, refresh_token),
+            )
+            connection.commit()
+def load_gmail_credentials(admin_email):
+    with connect_to_database() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT refresh_token FROM gmail_tokens WHERE admin_email = %s",
+                (admin_email,),
+            )
+            row = cursor.fetchone()
+    if not row:
+        return None
+    return Credentials(
+        None,
+        refresh_token=row[0],
+        token_uri="https://oauth2.googleapis.com/token",
+        client_id=GOOGLE_CLIENT_ID,
+        client_secret=GOOGLE_CLIENT_SECRET,
+        scopes=GMAIL_SCOPES,
+    )
+def build_gmail_query(filter_text, search_in="all"):
+    words = (filter_text or "").strip()
+    if not words:
+        return ""
+    if search_in == "subject":
+        return f"subject:({words})"
+    if search_in == "from":
+        return f"from:({words})"
+    return words
+@app.route("/api/gmail/status", methods=["GET"])
+def gmail_status():
+    admin_email = request.args.get("adminEmail", "")
+    if not is_admin(admin_email):
+        return jsonify({"error": "Only admin can access Gmail."}), 403
+    connected = load_gmail_credentials(ADMIN_EMAIL) is not None
+    return jsonify({"connected": connected}), 200
+@app.route("/api/gmail/connect", methods=["GET"])
+def gmail_connect():
+    admin_email = request.args.get("adminEmail", "")
+    if not is_admin(admin_email):
+        return jsonify({"error": "Only admin can connect Gmail."}), 403
+    if not GOOGLE_CLIENT_ID or not GOOGLE_CLIENT_SECRET:
+        return jsonify({"error": "Google OAuth is not configured on server."}), 500
+    flow = get_gmail_flow()
+    auth_url, _ = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true",
+        prompt="consent",
+    )
+    return redirect(auth_url)
+@app.route("/api/gmail/callback", methods=["GET"])
+def gmail_callback():
+    if not GOOGLE_CLIENT_ID:
+        return jsonify({"error": "Google OAuth not configured."}), 500
+    flow = get_gmail_flow()
+    auth_response = request.url.replace("http://", "https://")
+    flow.fetch_token(authorization_response=auth_response)
+    credentials = flow.credentials
+    if not credentials.refresh_token:
+        return jsonify({"error": "No refresh token received. Try again."}), 400
+    save_gmail_token(ADMIN_EMAIL, credentials.refresh_token)
+    return redirect("/?view=admin-gmail&gmail=connected")
+@app.route("/api/gmail/messages", methods=["GET"])
+def gmail_messages():
+    admin_email = request.args.get("adminEmail", "")
+    filter_text = request.args.get("filter", "")
+    search_in = request.args.get("searchIn", "all")
+    if not is_admin(admin_email):
+        return jsonify({"error": "Only admin can read Gmail."}), 403
+    credentials = load_gmail_credentials(ADMIN_EMAIL)
+    if not credentials:
+        return jsonify({"error": "Gmail not connected. Click Connect Gmail first."}), 401
+    try:
+        service = build("gmail", "v1", credentials=credentials)
+        query = build_gmail_query(filter_text, search_in)
+        result = service.users().messages().list(
+            userId="me", q=query, maxResults=20
+        ).execute()
+        messages = []
+        for item in result.get("messages", []):
+            msg = service.users().messages().get(
+                userId="me",
+                id=item["id"],
+                format="metadata",
+                metadataHeaders=["From", "Subject", "Date"],
+            ).execute()
+            headers = {
+                h["name"]: h["value"]
+                for h in msg.get("payload", {}).get("headers", [])
+            }
+            messages.append({
+                "id": item["id"],
+                "from": headers.get("From", ""),
+                "subject": headers.get("Subject", ""),
+                "date": headers.get("Date", ""),
+                "snippet": msg.get("snippet", ""),
+            })
+        return jsonify(messages), 200
+    except Exception as error:
+        print(f"Gmail fetch error: {error}")
+        return jsonify({"error": "Failed to fetch emails from Gmail."}), 500
 
 handler = app

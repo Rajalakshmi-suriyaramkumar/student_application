@@ -3,10 +3,19 @@ import Auth from './components/Auth';
 import ProfileCreate from './components/ProfileCreate';
 import ProfileView from './components/ProfileView';
 import AdminDashboard from './components/AdminDashboard';
+import AdminGmail from './components/AdminGmail';
 
 export default function App() {
   const [view, setView] = useState('auth');
   const [email, setEmail] = useState('');
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('view') === 'admin-gmail') {
+      setView('admin-gmail');
+      window.history.replaceState({}, '', '/');
+    }
+  }, []);
 
   const handleAuth = (userEmail, hasProfile, role) => {
     setEmail(userEmail);
@@ -47,7 +56,12 @@ export default function App() {
           <ProfileCreate userEmail={email} onProfileComplete={() => setView('view')} />
         )}
         {view === 'view' && <ProfileView userEmail={email} />}
-        {view === 'admin' && <AdminDashboard />}
+        {view === 'admin' && (
+          <AdminDashboard onOpenGmail={() => setView('admin-gmail')} />
+        )}
+        {view === 'admin-gmail' && (
+          <AdminGmail adminEmail={email} onBack={() => setView('admin')} />
+        )}
       </main>
     </div>
   );

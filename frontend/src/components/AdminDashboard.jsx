@@ -1,11 +1,9 @@
 import React, { useCallback, useEffect, useState } from 'react';
-
-export default function AdminDashboard() {
+export default function AdminDashboard({onOpenGmail}) {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [deletingEmail, setDeletingEmail] = useState('');
   const [errorMessage, setErrorMessage] = useState('');
-
   const loadStudents = useCallback(() => {
     setLoading(true);
     setErrorMessage('');
@@ -18,11 +16,9 @@ export default function AdminDashboard() {
       .catch((err) => setErrorMessage(err.message))
       .finally(() => setLoading(false));
   }, []);
-
   useEffect(() => {
     loadStudents();
   }, [loadStudents]);
-
   const handleDelete = async (email) => {
     if (!window.confirm(`Delete user ${email}? This cannot be undone.`)) {
       return;
@@ -46,7 +42,6 @@ export default function AdminDashboard() {
       setDeletingEmail('');
     }
   };
-
   if (loading) {
     return (
       <div className="state-message">
@@ -55,20 +50,19 @@ export default function AdminDashboard() {
       </div>
     );
   }
-
   const withProfiles = students.filter((s) => s.institution !== '—').length;
-
   return (
     <div className="page-card page-card--wide">
       <div className="dashboard-header">
         <h2 className="dashboard-title">Admin Dashboard</h2>
         <p className="dashboard-subtitle">Registered student profiles and accounts</p>
       </div>
-
+      <button type="button" className="btn btn-primary" onClick={onOpenGmail} style={{ marginBottom: '20px' }}>
+      Open Gmail Processor
+      </button>
       {errorMessage && (
         <p className="form-error" role="alert">{errorMessage}</p>
       )}
-
       <div className="stats-row">
         <div className="stat-card">
           <div className="stat-card__value">{students.length}</div>
@@ -83,7 +77,6 @@ export default function AdminDashboard() {
           <div className="stat-card__label">Pending Enrollment</div>
         </div>
       </div>
-
       {students.length === 0 ? (
         <div className="empty-state">No student profiles found.</div>
       ) : (
