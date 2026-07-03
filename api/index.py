@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote
 import bcrypt
 import psycopg2
 from psycopg2 import IntegrityError, OperationalError
@@ -397,7 +398,11 @@ def gmail_callback():
         if not credentials.refresh_token:
             return jsonify({"error": "No refresh token received. Try again."}), 400
         save_gmail_token(ADMIN_EMAIL, credentials.refresh_token)
-        return redirect("/?view=admin-gmail&gmail=connected")
+        return redirect(
+            "/?view=admin-gmail&adminEmail="
+            + quote(ADMIN_EMAIL)
+            + "&gmail=connected"
+        )
     except Exception as error:
         print(f"Gmail callback error: {error}")
         return jsonify({"error": str(error)}), 500

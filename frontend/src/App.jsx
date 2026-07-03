@@ -5,15 +5,52 @@ import ProfileView from './components/ProfileView';
 import AdminDashboard from './components/AdminDashboard';
 import AdminGmail from './components/AdminGmail';
 
+const SESSION_KEY = 'edcounselor_session';
+
+function loadSession() {
+  try {
+    const raw = localStorage.getItem(SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+function saveSession(email, role, view) {
+  localStorage.setItem(SESSION_KEY, JSON.stringify({ email, role, view }));
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
 export default function App() {
   const [view, setView] = useState('auth');
   const [email, setEmail] = useState('');
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    if (params.get('view') === 'admin-gmail') {
-      setView('admin-gmail');
+    const oauthView = params.get('view');
+    const oauthEmail = params.get('adminEmail');
+
+    if (oauthView === 'admin-gmail') {
+      const session = loadSession();
+      const restoredEmail = oauthEmail || session?.email || '';
+      if (restoredEmail) {
+        setEmail(restoredEmail);
+        setView('admin-gmail');
+        saveSession(restoredEmail, 'admin', 'admin-gmail');
+      } else {
+        setView('auth');
+      }
       window.history.replaceState({}, '', '/');
+      return;
+    }
+
+    const session = loadSession();
+    if (session?.email) {
+      setEmail(session.email);
+      setView(session.view || (session.role === 'admin' ? 'admin' : 'view'));
     }
   }, []);
 
@@ -21,14 +58,28 @@ export default function App() {
     setEmail(userEmail);
     if (role === 'admin') {
       setView('admin');
+      saveSession(userEmail, role, 'admin');
       return;
     }
-    setView(hasProfile ? 'view' : 'create');
+    const nextView = hasProfile ? 'view' : 'create';
+    setView(nextView);
+    saveSession(userEmail, role, nextView);
   };
 
   const handleLogout = () => {
     setEmail('');
     setView('auth');
+    clearSession();
+  };
+
+  const goToAdminGmail = () => {
+    setView('admin-gmail');
+    saveSession(email, 'admin', 'admin-gmail');
+  };
+
+  const goToAdminDashboard = () => {
+    setView('admin');
+    saveSession(email, 'admin', 'admin');
   };
 
   const isCentered = view === 'auth' || view === 'create' || view === 'view';
@@ -57,10 +108,10 @@ export default function App() {
         )}
         {view === 'view' && <ProfileView userEmail={email} />}
         {view === 'admin' && (
-          <AdminDashboard onOpenGmail={() => setView('admin-gmail')} />
+          <AdminDashboard onOpenGmail={goToAdminGmail} />
         )}
         {view === 'admin-gmail' && (
-          <AdminGmail adminEmail={email} onBack={() => setView('admin')} />
+          <AdminGmail adminEmail={email} onBack={goToAdminDashboard} />
         )}
       </main>
     </div>

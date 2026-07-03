@@ -16,6 +16,10 @@ export default function AdminGmail({ adminEmail, onBack }) {
   }, [adminEmail]);
 
   const connectGmail = () => {
+    if (!adminEmail) {
+      setError('Session expired. Please log in as admin again.');
+      return;
+    }
     window.location.href = `/api/gmail/connect?adminEmail=${encodeURIComponent(adminEmail)}`;
   };
 
