@@ -329,8 +329,8 @@ def save_gmail_token(admin_email, refresh_token):
         with connection.cursor() as cursor:
             cursor.execute(
                 """
-                INSERT INTO gmail_tokens (admin_email, refresh_token)
-                VALUES (%s, %s)
+                INSERT INTO gmail_tokens (admin_email, refresh_token, updated_at)
+                VALUES (%s, %s, NOW())
                 ON CONFLICT (admin_email) DO UPDATE
                 SET refresh_token = EXCLUDED.refresh_token, updated_at = NOW()
                 """,
