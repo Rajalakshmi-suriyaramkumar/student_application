@@ -381,14 +381,18 @@ def gmail_connect():
 def gmail_callback():
     if not GOOGLE_CLIENT_ID:
         return jsonify({"error": "Google OAuth not configured."}), 500
-    flow = get_gmail_flow()
-    auth_response = request.url.replace("http://", "https://")
-    flow.fetch_token(authorization_response=auth_response)
-    credentials = flow.credentials
-    if not credentials.refresh_token:
-        return jsonify({"error": "No refresh token received. Try again."}), 400
-    save_gmail_token(ADMIN_EMAIL, credentials.refresh_token)
-    return redirect("/?view=admin-gmail&gmail=connected")
+    try:
+        flow = get_gmail_flow()
+        auth_response = GOOGLE_REDIRECT_URI + "?" + request.query_string.decode()
+        flow.fetch_token(authorization_response=auth_response)
+        credentials = flow.credentials
+        if not credentials.refresh_token:
+            return jsonify({"error": "No refresh token received. Try again."}), 400
+        save_gmail_token(ADMIN_EMAIL, credentials.refresh_token)
+        return redirect("/?view=admin-gmail&gmail=connected")
+    except Exception as error:
+        print(f"Gmail callback error: {error}")
+        return jsonify({"error": str(error)}), 500
 @app.route("/api/gmail/messages", methods=["GET"])
 def gmail_messages():
     admin_email = request.args.get("adminEmail", "")
