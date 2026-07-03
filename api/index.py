@@ -13,9 +13,17 @@ DEFAULT_DATABASE_URL = (
     "postgresql://postgres.iwwcrggaufbphjaxwybx:RAJALAKSHMI123"
     "@aws-1-ap-south-1.pooler.supabase.com:6543/postgres")
 DATABASE_URL = os.environ.get("DATABASE_URL", DEFAULT_DATABASE_URL)
-GOOGLE_CLIENT_ID = os.environ.get("GOOGLE_CLIENT_ID", "")
-GOOGLE_CLIENT_SECRET = os.environ.get("GOOGLE_CLIENT_SECRET", "")
-GOOGLE_REDIRECT_URI = os.environ.get("GOOGLE_REDIRECT_URI", "")
+def normalize_env_value(value, key_prefix=""):
+    cleaned = (value or "").strip()
+    if key_prefix and cleaned.startswith(f"{key_prefix}="):
+        cleaned = cleaned.split("=", 1)[1].strip()
+    return cleaned
+GOOGLE_CLIENT_ID = normalize_env_value(os.environ.get("GOOGLE_CLIENT_ID", ""), "GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = normalize_env_value(os.environ.get("GOOGLE_CLIENT_SECRET", ""), "GOOGLE_CLIENT_SECRET")
+GOOGLE_REDIRECT_URI = normalize_env_value(
+    os.environ.get("GOOGLE_REDIRECT_URI", ""),
+    "GOOGLE_REDIRECT_URI",
+) or "https://task-edcounselor.vercel.app/api/gmail/callback"
 GMAIL_SCOPES = ["https://www.googleapis.com/auth/gmail.readonly"]
 def connect_to_database():
     connection_url = DATABASE_URL
