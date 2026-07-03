@@ -1,19 +1,51 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 
 export default function AdminDashboard() {
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [deletingEmail, setDeletingEmail] = useState('');
+  const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
+  const loadStudents = useCallback(() => {
+    setLoading(true);
+    setErrorMessage('');
     fetch('/api/get-all-profiles')
       .then((res) => {
         if (!res.ok) throw new Error('Failed to fetch dashboard data');
         return res.json();
       })
       .then((data) => setStudents(data))
-      .catch((err) => console.error(err))
+      .catch((err) => setErrorMessage(err.message))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadStudents();
+  }, [loadStudents]);
+
+  const handleDelete = async (email) => {
+    if (!window.confirm(`Delete user ${email}? This cannot be undone.`)) {
+      return;
+    }
+    setDeletingEmail(email);
+    setErrorMessage('');
+    try {
+      const response = await fetch('/api/delete-user', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to delete user');
+      }
+      setStudents((prev) => prev.filter((s) => s.email !== email));
+    } catch (error) {
+      setErrorMessage(error.message);
+    } finally {
+      setDeletingEmail('');
+    }
+  };
 
   if (loading) {
     return (
@@ -32,6 +64,10 @@ export default function AdminDashboard() {
         <h2 className="dashboard-title">Admin Dashboard</h2>
         <p className="dashboard-subtitle">Registered student profiles and accounts</p>
       </div>
+
+      {errorMessage && (
+        <p className="form-error" role="alert">{errorMessage}</p>
+      )}
 
       <div className="stats-row">
         <div className="stat-card">
@@ -61,6 +97,7 @@ export default function AdminDashboard() {
                 <th>Roll No</th>
                 <th>Class</th>
                 <th>Parent Contact</th>
+                <th>Action</th>
               </tr>
             </thead>
             <tbody>
@@ -74,6 +111,16 @@ export default function AdminDashboard() {
                     <span className="table-badge">{student.class}</span>
                   </td>
                   <td><span className="table-contact">{student.parentContact}</span></td>
+                  <td>
+                    <button
+                      type="button"
+                      className="btn btn-danger btn-sm"
+                      disabled={deletingEmail === student.email}
+                      onClick={() => handleDelete(student.email)}
+                    >
+                      {deletingEmail === student.email ? 'Deleting...' : 'Delete'}
+                    </button>
+                  </td>
                 </tr>
               ))}
             </tbody>

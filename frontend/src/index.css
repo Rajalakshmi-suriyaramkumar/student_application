@@ -236,6 +236,27 @@ body {
   background: var(--success-hover);
 }
 
+.btn-danger {
+  background: #dc2626;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+}
+
+.btn-danger:hover {
+  background: #b91c1c;
+}
+
+.btn-danger:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.btn-sm {
+  padding: 8px 14px;
+  font-size: 0.8125rem;
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--primary);
@@ -260,6 +281,17 @@ body {
 .link-text:hover {
   color: var(--primary-hover);
   text-decoration: underline;
+}
+
+.form-error {
+  margin: 16px 0 0;
+  padding: 12px 14px;
+  border-radius: var(--radius-sm);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #b91c1c;
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 /* Loading & empty states */
