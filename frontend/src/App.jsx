@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Auth from './components/Auth';
 import ProfileCreate from './components/ProfileCreate';
 import ProfileView from './components/ProfileView';
